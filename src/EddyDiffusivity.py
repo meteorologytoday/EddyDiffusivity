@@ -3,14 +3,14 @@ import numpy as np
 
 class EddyDiffusivity2D:
 	def __init__(self, **kwargs):
-	"""
-	Parameters:
-	gs:      Grid size. Equally spaced in both directions are assumed.
-	qlevels: Specify tracer concentration intervals. If there are
-	         N numbers in [qlevels], (N-1) intervals are created.
-	         Concentration outlies [qlevels] would be ignored during
-	         calculation.
-	"""
+		"""
+		Parameters:
+		gs:      Grid size. Equally spaced in both directions are assumed.
+		qlevels: Specify tracer concentration intervals. If there are
+		         N numbers in [qlevels], (N-1) intervals are created.
+		         Concentration outlies [qlevels] would be ignored during
+		         calculation.
+		"""
 		must_kwargs = ['kappa', 'gs', 'xpts', 'ypts', 'qlevels']
 
 		for kwarg in must_kwargs:
@@ -25,13 +25,13 @@ class EddyDiffusivity2D:
 			raise ValueError('Unknown parameter [%s].' % (kwarg,))
 
 		if not ( type(self.kappa) is np.ndarray ):
-			self.kappa = np.zeros((xpts,ypts)) + self.kappa
+			self.kappa = np.zeros((self.xpts,self.ypts)) + self.kappa
 		
 		self.all_pts = self.xpts * self.ypts
 
 		
 	def markAreaByQLevels(self, qfield):
-		area_mark = np.zeros(qfield.shape)
+		area_mark = np.zeros(qfield.shape, dtype=int)
 		area_mark[:,:] = np.nan 
 
 		for idx, q in np.ndenumerate(qfield):
@@ -42,28 +42,28 @@ class EddyDiffusivity2D:
 		return area_mark
 
 	def calGradX(self, field):
-		grad = np.zeros(field.shape):
+		grad = np.zeros(field.shape)
 		for (i,j), _ in np.ndenumerate(field):
 			l, u = -1, 1
 			if i == 0:
 				l = 0
 			elif i == (field.shape[0] - 1):
-				u = 1
+				u = 0
 
-			grad[i,j] = (grad[i+u,j] - grad[i+l,j]) / ((u-l) * self.gs)
+			grad[i,j] = (field[i+u,j] - field[i+l,j]) / ((u-l) * self.gs)
 
 		return grad
 
 	def calGradY(self, field):
-		grad = np.zeros(field.shape):
+		grad = np.zeros(field.shape)
 		for (i,j), _ in np.ndenumerate(field):
 			l, u = -1, 1
-			if i == 0:
+			if j == 0:
 				l = 0
-			elif i == (field.shape[0] - 1):
-				u = 1
+			elif j == (field.shape[0] - 1):
+				u = 0
 
-			grad[i,j] = (grad[i,j+u] - grad[i,j+l]) / ((u-l) * self.gs)
+			grad[i,j] = (field[i,j+u] - field[i,j+l]) / ((u-l) * self.gs)
 
 		return grad
 
@@ -88,6 +88,19 @@ class EddyDiffusivity2D:
 
 		diff = dA * dI / dQ**2.0 * self.gs**4.0
 
-		return diff
+		diff_map = np.zeros(qfield.shape)
+		diff_map[:,:] = np.nan
+
+		for idx, i in np.ndenumerate(area_mark):
+			if not np.isnan(i):
+				diff_map[idx] = diff[i]
+
+		self.debug = {
+			'dA'       : dA, 
+			'dI'       : dI,
+			'dI_field' : dI_field
+		}
+
+		return diff_map, diff
 
 
